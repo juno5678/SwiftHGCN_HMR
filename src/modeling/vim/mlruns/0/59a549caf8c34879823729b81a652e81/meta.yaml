@@ -1,0 +1,15 @@
+artifact_uri: file:///home/juno/Vim/vim/mlruns/0/59a549caf8c34879823729b81a652e81/artifacts
+end_time: 1713189672429
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 59a549caf8c34879823729b81a652e81
+run_name: colorful-vole-926
+run_uuid: 59a549caf8c34879823729b81a652e81
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713189672382
+status: 3
+tags: []
+user_id: juno
