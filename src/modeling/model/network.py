@@ -144,10 +144,10 @@ class MambaHMR(torch.nn.Module):
         # ms_output = ms_cam_parameter, ms_pred_3d_joints, ms_pred_3d_vertices_coarse, ms_pred_3d_vertices_mid, ms_pred_3d_vertices_fine
         # ms_output = self.vim_block2(ms_input_feature, 196)  # BX456XC+P
         ms_cam_parameter, ms_pred_3d_joints, ms_pred_3d_vertices_coarse, ms_pred_3d_vertices_mid, ms_pred_3d_vertices_fine = self.vim_block2(ms_input_feature, 196)  # BX456XC+P
-        # pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine = self.hgcn_block(
-        #     ms_pred_3d_vertices_coarse)
-        # ms_output = ms_cam_parameter, ms_pred_3d_joints, pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
-        ms_output = ms_cam_parameter, ms_pred_3d_joints, ms_pred_3d_vertices_coarse, ms_pred_3d_vertices_mid, ms_pred_3d_vertices_fine
+        pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine = self.hgcn_block(
+            ms_pred_3d_vertices_coarse)
+        ms_output = ms_cam_parameter, ms_pred_3d_joints, pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
+        # ms_output = ms_cam_parameter, ms_pred_3d_joints, ms_pred_3d_vertices_coarse, ms_pred_3d_vertices_mid, ms_pred_3d_vertices_fine
 
         ms_cjv_feature = torch.cat([ms_output[0].unsqueeze(1), ms_output[1], ms_output[2]], 1)
         ms_cjv_feature = self.fc2(ms_cjv_feature)
@@ -164,8 +164,8 @@ class MambaHMR(torch.nn.Module):
         # hs_output = hs_cam_parameter, hs_pred_3d_joints, hs_pred_3d_vertices_coarse, hs_pred_3d_vertices_mid, hs_pred_3d_vertices_fine
         # hs_output = self.vim_block3(hs_input_feature, 196)  # BX456XC+P
         hs_cam_parameter, hs_pred_3d_joints, hs_pred_3d_vertices_coarse, hs_pred_3d_vertices_mid, hs_pred_3d_vertices_fine = self.vim_block3(hs_input_feature, 196)  # BX456XC+P
-        # pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine = self.gcn_block(hs_pred_3d_vertices_coarse)
-        # hs_output = hs_cam_parameter, hs_pred_3d_joints, pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
-        hs_output = hs_cam_parameter, hs_pred_3d_joints, hs_pred_3d_vertices_coarse, hs_pred_3d_vertices_mid, hs_pred_3d_vertices_fine
+        pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine = self.gcn_block(hs_pred_3d_vertices_coarse)
+        hs_output = hs_cam_parameter, hs_pred_3d_joints, pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
+        # hs_output = hs_cam_parameter, hs_pred_3d_joints, hs_pred_3d_vertices_coarse, hs_pred_3d_vertices_mid, hs_pred_3d_vertices_fine
         return ls_output, ms_output, hs_output
 

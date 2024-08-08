@@ -21,7 +21,8 @@ python src/tools/run_phmr_bodymesh.py \
        --vertices_loss_weight 200 \
        --joints_loss_weight 1000 \
        --edge_loss_weight 50 \
-       --normal_loss_weight 50
+       --normal_loss_weight 50 \
+       --resume_checkpoint /home/juno/MambaHMR/models/mfvjm_mms_refine_hgcn/h36m/checkpoint-23-171074/state_dict.bin
 #       --refine_vertices_loss_weight 200 \
 #       --refine_joint_loss_weight 1000
 

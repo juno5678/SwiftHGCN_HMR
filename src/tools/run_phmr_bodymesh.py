@@ -12,7 +12,7 @@ Copyright (c) Microsoft Corporation. All Rights Reserved [see https://github.com
 from __future__ import absolute_import, division, print_function
 
 import sys
-sys.path.insert(0, '/home/juno/MambaHMR')
+sys.path.insert(0, '/home/juno/SwiftHGCN_HMR')
 # sys.path.insert(0, '/home/juno/MambaHMR')
 
 import argparse

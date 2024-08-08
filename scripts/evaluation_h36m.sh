@@ -9,6 +9,6 @@ python    src/tools/run_phmr_bodymesh.py \
           --position_dim 128 \
           --dropout 0.1 \
           --run_eval_only \
-          --resume_checkpoint /home/juno/MambaHMR/models/mfvjm_mms_refine/H3.6M/checkpoint-23-171074/model.bin
+          --resume_checkpoint /home/juno/MambaHMR/models/mfvjm_mms_refine_hgcn/h36m/checkpoint-23-171074/state_dict.bin
 
 
