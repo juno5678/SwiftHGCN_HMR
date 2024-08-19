@@ -58,7 +58,7 @@ def parse_args():
     #########################################################
     # Model architectures
     #########################################################
-    parser.add_argument('-a', '--arch', default='hrnet-w64',
+    parser.add_argument('-a', '--arch', default='hrnet-w32',
                         help='CNN backbone architecture: hrnet-w64, hrnet, resnet50')
     parser.add_argument("--transformer_nhead", default=4, type=int, required=False,
                         help="Update model config if given. Note that the division of "

@@ -4,6 +4,8 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Parameter
+import torch.nn as nn
+import math
 
 from torch_geometric.experimental import disable_dynamic_shapes
 from torch_geometric.nn.conv import MessagePassing
@@ -11,6 +13,7 @@ from torch_geometric.nn.dense.linear import Linear
 from torch_geometric.nn.inits import glorot, zeros
 from torch_geometric.utils import scatter, softmax
 from torch_geometric.nn import GCNConv
+from src.modeling.__hgcn_gcn import GCN_block, HE_GCN_block
 from torch_geometric.data import Data
 from torch_geometric.typing import (
     Adj,
@@ -295,3 +298,61 @@ class HGConv_edge_to_node(MessagePassing):
             out = alpha.view(-1, self.heads, 1) * out
 
         return out
+
+
+class ModulatedHyperGraphConv(nn.Module):
+    """
+    Semantic graph convolution layer
+    """
+    # H : incident matrix (N*M)
+    def __init__(self, in_channels, out_channels, H, hidden_channels=64, bias=True):
+        super(ModulatedHyperGraphConv, self).__init__()
+        self.in_features = in_channels
+        self.out_features = out_channels
+
+        self.W = nn.Parameter(torch.zeros(size=(2, in_channels, out_channels), dtype=torch.float))  #torch.Size([1,431, 384])
+        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+
+        # self.M = nn.Parameter(torch.zeros(size=(H.size(0), out_features), dtype=torch.float)) #17,384,取值在
+        # nn.init.xavier_uniform_(self.M.data, gain=1.414)
+        self.H = H
+
+        self.H2 = nn.Parameter(torch.ones_like(H))
+        nn.init.constant_(self.H2, 1e-6)
+        self.adjacency_matrix = torch.load("tensor_14joint_norm_adjmx.pt")
+        # self.gcn = GCN_block(self.adjacency_matrix, input_dim=hidden_channels, hidden_dim=384,
+        #                      output_dim=hidden_channels, drop_path=0.15)
+        self.gcn = GCN_block(self.adjacency_matrix, input_dim=hidden_channels, hidden_dim=16,
+                             output_dim=hidden_channels, drop_path=0.15)
+
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_channels, dtype=torch.float))
+            stdv = 1. / math.sqrt(self.W.size(2))
+            self.bias.data.uniform_(-stdv, stdv)
+        else:
+            self.register_parameter('bias', None)
+
+    def forward(self, input):
+        x = torch.matmul(input, self.W[0])  #input 256,17,2  -> 256,17,384
+        residual = torch.matmul(input, self.W[1])  # input 256,17,2  -> 256,17,384
+
+        H = (self.H.to(input.device) + self.H2.to(input.device))/2
+        nodes_of_hyperedges = torch.sum(H, dim=0)
+        hyperedges_of_node = torch.sum(H, dim=1)
+        # B = torch.diag(nodes_of_hyperedges)
+        B_inv = torch.diag(1.0 / nodes_of_hyperedges)
+        # D = torch.diag(hyperedges_of_node)
+        D_inv = torch.diag(1.0 / hyperedges_of_node)
+
+        E = torch.matmul(B_inv, torch.matmul(H.T, x))
+        output = self.gcn(E)
+        output = torch.matmul(D_inv, torch.matmul(H, output))
+        output +=residual
+        # output = torch.matmul(H , self.M*h0) #前者是专门针对自己的I，后者是针对M的
+        if self.bias is not None:
+            return output + self.bias.view(1, 1, -1) #torch.Size([256, 17, 384])，全部都有的
+        else:
+            return output
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

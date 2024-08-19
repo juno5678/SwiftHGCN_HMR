@@ -223,10 +223,8 @@ class MeshTSVDataset(object):
     def __getitem__(self, idx):
 
         img = self.get_image(idx)
-        full_img = self.get_image(idx)
         img_key = self.get_img_key(idx)
         annotations = self.get_annotations(idx)
-        img_info = self.get_img_info(idx)
 
         annotations = annotations[0]
         center = annotations['center']
@@ -235,8 +233,6 @@ class MeshTSVDataset(object):
         has_3d_joints = annotations['has_3d_joints']
         joints_2d = np.asarray(annotations['2d_joints'])
         joints_3d = np.asarray(annotations['3d_joints'])
-        height = img_info['height']
-        width = img_info['width']
 
         if joints_2d.ndim==3:
             joints_2d = joints_2d[0]
@@ -273,7 +269,7 @@ class MeshTSVDataset(object):
         ###################################
         # Masking percantage
         # We observe that 30% works better for human body mesh. Further details are reported in the paper.
-        mvm_percent = 0.2
+        mvm_percent = 0.3
         ###################################
 
         mjm_mask = np.ones((14, 1))
@@ -342,8 +338,6 @@ class MeshTSVDataset(object):
 
         meta_data = {}
         meta_data['ori_img'] = img
-        # if not self.is_train:
-        #     meta_data['full_img'] = full_img
         meta_data['pose'] = torch.from_numpy(self.pose_processing(pose, rot, flip)).float()
         meta_data['betas'] = torch.from_numpy(betas).float()
         meta_data['joints_3d'] = torch.from_numpy(joints_3d_transformed).float()
@@ -362,7 +356,6 @@ class MeshTSVDataset(object):
         meta_data['scale'] = float(sc * scale)
         meta_data['center'] = np.asarray(center).astype(np.float32)
         meta_data['gender'] = gender
-        meta_data['orig_shape'] = [width, height]
         return img_key, transfromed_img, meta_data
 
 

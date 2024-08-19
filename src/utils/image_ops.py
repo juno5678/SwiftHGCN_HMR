@@ -156,33 +156,6 @@ def uncrop(img, center, scale, orig_shape, rot=0, is_rgb=True):
     img = myimresize(img, [crop_shape[0],crop_shape[1]])
     new_img[old_y[0]:old_y[1], old_x[0]:old_x[1]] = img[new_y[0]:new_y[1], new_x[0]:new_x[1]]
     return new_img
-def uncrop_paste(img, center, scale, orig_shape, orig_img, rot=0, is_rgb=True):
-    """'Undo' the image cropping/resizing.
-    This function is used when evaluating mask/part segmentation.
-    """
-    res = img.shape[:2]
-    # Upper left point
-    ul = np.array(transform([1, 1], center, scale, res, invert=1))-1
-    # Bottom right point
-    br = np.array(transform([res[0]+1,res[1]+1], center, scale, res, invert=1))-1
-    # size of cropped image
-    crop_shape = [br[1] - ul[1], br[0] - ul[0]]
-
-    new_shape = [br[1] - ul[1], br[0] - ul[0]]
-    if len(img.shape) > 2:
-        new_shape += [img.shape[2]]
-    # new_img = np.zeros(orig_shape, dtype=np.uint8)
-    new_img = np.asarray(orig_img.clone(), dtype=np.uint8)
-    # Range to fill new array
-    new_x = max(0, -ul[0]), min(br[0], orig_shape[1]) - ul[0]
-    new_y = max(0, -ul[1]), min(br[1], orig_shape[0]) - ul[1]
-    # Range to sample from original image
-    old_x = max(0, ul[0]), min(orig_shape[1], br[0])
-    old_y = max(0, ul[1]), min(orig_shape[0], br[1])
-    # img = scipy.misc.imresize(img, crop_shape, interp='nearest')
-    img = myimresize(img, [crop_shape[1],crop_shape[0]])
-    new_img[old_y[0]:old_y[1], old_x[0]:old_x[1]] = img[new_y[0]:new_y[1], new_x[0]:new_x[1]]
-    return new_img
 
 def rot_aa(aa, rot):
     """Rotate axis angle parameters."""

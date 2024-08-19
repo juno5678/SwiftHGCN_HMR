@@ -15,6 +15,7 @@ from src.modeling.model.regressor import HgcnMeshRegressor, GcnMeshRegressor
 from src.modeling.model.module.basic_modules import BasicBlock
 from src.modeling.model.module.position_encoding import build_position_encoding
 from src.modeling.vim.models_mamba import feat_Mamba, VisionMamba, PatchEmbed
+from src.modeling.model.regressor import GcnJointRegressor
 
 import torchvision.transforms as transforms
 BN_MOMENTUM = 0.1
@@ -65,6 +66,9 @@ class MambaHMR(torch.nn.Module):
         self.vim_block3 = VimMeshRegressor(args, mesh_sampler, model_dim=(args.model_dim//4, args.model_dim//4))
         self.hgcn_block = HgcnMeshRegressor(args, mesh_sampler)
         self.gcn_block = GcnMeshRegressor(args, mesh_sampler)
+        self.gcn_joint_block1 = GcnJointRegressor(args, mesh_sampler)
+        self.gcn_joint_block2 = GcnJointRegressor(args, mesh_sampler)
+
 
     def build_head(self, args):
 
@@ -146,8 +150,9 @@ class MambaHMR(torch.nn.Module):
         ms_cam_parameter, ms_pred_3d_joints, ms_pred_3d_vertices_coarse, ms_pred_3d_vertices_mid, ms_pred_3d_vertices_fine = self.vim_block2(ms_input_feature, 196)  # BX456XC+P
         pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine = self.hgcn_block(
             ms_pred_3d_vertices_coarse)
+        # pred_3d_joints = self.gcn_joint_block1(ms_pred_3d_joints)
+
         ms_output = ms_cam_parameter, ms_pred_3d_joints, pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
-        # ms_output = ms_cam_parameter, ms_pred_3d_joints, ms_pred_3d_vertices_coarse, ms_pred_3d_vertices_mid, ms_pred_3d_vertices_fine
 
         ms_cjv_feature = torch.cat([ms_output[0].unsqueeze(1), ms_output[1], ms_output[2]], 1)
         ms_cjv_feature = self.fc2(ms_cjv_feature)
@@ -165,7 +170,8 @@ class MambaHMR(torch.nn.Module):
         # hs_output = self.vim_block3(hs_input_feature, 196)  # BX456XC+P
         hs_cam_parameter, hs_pred_3d_joints, hs_pred_3d_vertices_coarse, hs_pred_3d_vertices_mid, hs_pred_3d_vertices_fine = self.vim_block3(hs_input_feature, 196)  # BX456XC+P
         pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine = self.gcn_block(hs_pred_3d_vertices_coarse)
+        # pred_3d_joints = self.gcn_joint_block2(hs_pred_3d_joints)
+
         hs_output = hs_cam_parameter, hs_pred_3d_joints, pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
-        # hs_output = hs_cam_parameter, hs_pred_3d_joints, hs_pred_3d_vertices_coarse, hs_pred_3d_vertices_mid, hs_pred_3d_vertices_fine
         return ls_output, ms_output, hs_output
 

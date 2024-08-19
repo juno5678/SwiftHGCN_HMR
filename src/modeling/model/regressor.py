@@ -13,8 +13,9 @@ from timm.models import create_model
 from src.modeling.vim.models_mamba import feat_Mamba
 from src.modeling._hgcn import HGCN, HyperGraphResBlock, HGGCN, HGGCNBlock
 # from src.modeling._hgcn import HGCN, HyperGraphResBlock, HGGCNResBlock
-
 from src.modeling._gcnn import GraphResBlock
+# from src.modeling._joint_gcn import Modulated_GCN_block
+from src.modeling.__hgcn_gcn import GCN_block, ModulatedGraphConv
 
 
 class Vimfeat(nn.Module):
@@ -174,3 +175,33 @@ class GcnMeshRegressor(nn.Module):
         pred_3d_vertices_fine = self.mesh_sampler.upsample(pred_3d_vertices_mid, n1=1, n2=0)
 
         return pred_3d_vertices_coarse, pred_3d_vertices_mid, pred_3d_vertices_fine
+
+class GcnJointRegressor(nn.Module):
+    def __init__(self, args, mesh_sampler, model_dim=(64, 64)):
+        super(GcnJointRegressor, self).__init__()
+        self.args = args
+        self.mesh_sampler = mesh_sampler
+        self.num_joints = 14
+        self.adjacency_matrix = torch.load("tensor_14joint_norm_adjmx.pt")
+        self.gcn1 = ModulatedGraphConv(in_features=3, out_features=model_dim[0], adj=self.adjacency_matrix)
+        self.gcn2 = ModulatedGraphConv(in_features=model_dim[0], out_features=3, adj=self.adjacency_matrix)
+        self.norm_gcn1 = nn.LayerNorm(model_dim[0])
+        self.gelu = nn.GELU()
+        self.gcn_block1 = GCN_block(self.adjacency_matrix, input_dim=model_dim[0], hidden_dim=model_dim[0],
+                             output_dim=model_dim[0], drop_path=0.15)
+        self.gcn_block2 = GCN_block(self.adjacency_matrix, input_dim=model_dim[0], hidden_dim=model_dim[0],
+                             output_dim=model_dim[0], drop_path=0.15)
+
+    def forward(self, joints_coord):
+        device = joints_coord.device
+        batch_size = joints_coord.size(0)
+
+        output = self.gcn1(joints_coord)
+        output = self.gelu(self.norm_gcn1(output))
+        residual = output
+        output = self.gcn_block1(output)
+        output = self.gcn_block2(output)
+        output = output + residual
+        output = self.gcn2(output)
+
+        return output

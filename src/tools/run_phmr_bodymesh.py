@@ -12,7 +12,8 @@ Copyright (c) Microsoft Corporation. All Rights Reserved [see https://github.com
 from __future__ import absolute_import, division, print_function
 
 import sys
-sys.path.insert(0, '/home/juno/SwiftHGCN_HMR')
+sys.path.insert(0, '/home/user/juno/MambaHMR')
+
 # sys.path.insert(0, '/home/juno/MambaHMR')
 
 import argparse
@@ -186,7 +187,7 @@ def run(args, train_dataloader, val_dataloader, Network, mesh_sampler, smpl, ren
     iteration = 0
     total_iteration = len(train_dataloader)
     progress_bar = tqdm(total=total_iteration, desc='Training Progress')
-
+    scheduler = OneCycleLR(optimizer, max_lr=args.lr, steps_per_epoch=iters_per_epoch, epochs=args.num_train_epochs)
     for iteration, (img_keys, images, annotations) in enumerate(train_dataloader):
         # gc.collect()
         # torch.cuda.empty_cache()
@@ -195,7 +196,7 @@ def run(args, train_dataloader, val_dataloader, Network, mesh_sampler, smpl, ren
         epoch = iteration // iters_per_epoch
         batch_size = images.size(0)
         # adjust_learning_rate(optimizer, epoch, args)
-        scheduler = OneCycleLR(optimizer, max_lr=args.lr, steps_per_epoch=iters_per_epoch , epochs=args.num_train_epochs)
+
         data_time.update(time.time() - end)
 
         images = images.cuda(args.device)
@@ -314,7 +315,7 @@ def run(args, train_dataloader, val_dataloader, Network, mesh_sampler, smpl, ren
         # back prop
         loss.backward()
         optimizer.step()
-
+        scheduler.step()
         batch_time.update(time.time() - end)
         end = time.time()
 
@@ -488,9 +489,9 @@ def run(args, train_dataloader, val_dataloader, Network, mesh_sampler, smpl, ren
                                                                                                   1000 * hs_val_PAmPJPE,
                                                                                                   val_count)
             )
-            if hs_val_PAmPJPE < log_eval_metrics.PAmPJPE:
+            # if hs_val_PAmPJPE < log_eval_metrics.PAmPJPE:
             # if hs_val_mPJPE < log_eval_metrics.mPJPE:
-            # if hs_val_mPVE < log_eval_metrics.mPVE:
+            if hs_val_mPVE < log_eval_metrics.mPVE:
                 checkpoint_dir = save_checkpoint(Network, args, optimizer, epoch, iteration)
                 log_eval_metrics.update(hs_val_mPVE, hs_val_mPJPE, hs_val_PAmPJPE, epoch)
 
@@ -664,7 +665,6 @@ def run_validate(args, val_dataloader, Network, criterion_keypoints, criterion_v
     # switch to evaluate mode
     Network.eval()
     smpl.eval()
-
     with torch.no_grad():
         # end = time.time()
         for i, (img_keys, images, annotations) in enumerate(val_dataloader):
@@ -908,30 +908,29 @@ def run_validate(args, val_dataloader, Network, criterion_keypoints, criterion_v
             #         cv2.imwrite(temp_fname, output_img)
             #         aml_run.log_image(name='low_error visual results', path=temp_fname)
 
-            # visualize
-            # if i % args.logging_steps == 0 and renderer is not None:
-            #
-            #     hs_visual_imgs = visualize_mesh(renderer,
-            #                                     annotations['ori_img'].detach(),
-            #                                     annotations['joints_2d'].detach(),
-            #                                     hs_pred_vertices.detach(),
-            #                                     hs_pred_camera.detach(),
-            #                                     hs_pred_2d_joints_from_smpl.detach())
-            #     hs_visual_imgs = hs_visual_imgs.transpose(0, 1)
-            #     hs_visual_imgs = hs_visual_imgs.transpose(1, 2)
-            #     hs_visual_imgs = np.asarray(hs_visual_imgs)
-            #
-            #     if is_main_process() == True:
-            #
-            #         hs_img_dir = op.join(args.output_dir, "hs_val_img")
-            #         try:
-            #             mkdir(hs_img_dir)
-            #         except FileExistsError:
-            #             pass
-            #         stamp = str(epoch) + '_' + str(i)
-            #         temp_fname = hs_img_dir + '/hs_val_visual_' + stamp + '.jpg'
-            #         cv2.imwrite(temp_fname, np.asarray(hs_visual_imgs[:, :, ::-1] * 255))
-            #         aml_run.log_image(name='hs visual results', path=temp_fname)
+            if i % args.logging_steps == 0 and renderer is not None:
+
+                hs_visual_imgs = visualize_mesh(renderer,
+                                                annotations['ori_img'].detach(),
+                                                annotations['joints_2d'].detach(),
+                                                hs_pred_vertices.detach(),
+                                                hs_pred_camera.detach(),
+                                                hs_pred_2d_joints_from_smpl.detach())
+                hs_visual_imgs = hs_visual_imgs.transpose(0, 1)
+                hs_visual_imgs = hs_visual_imgs.transpose(1, 2)
+                hs_visual_imgs = np.asarray(hs_visual_imgs)
+
+                if is_main_process() == True:
+
+                    hs_img_dir = op.join(args.output_dir, "hs_val_img")
+                    try:
+                        mkdir(hs_img_dir)
+                    except FileExistsError:
+                        pass
+                    stamp = str(epoch) + '_' + str(i)
+                    temp_fname = hs_img_dir + '/hs_val_visual_' + stamp + '.jpg'
+                    cv2.imwrite(temp_fname, np.asarray(hs_visual_imgs[:, :, ::-1] * 255))
+                    aml_run.log_image(name='hs visual results', path=temp_fname)
 
     print("low error count : ", l_e_count)
     print("normal error count : ", n_e_count)
@@ -1216,26 +1215,21 @@ def main(args):
         # remove the last fc layer
         backbone = torch.nn.Sequential(*list(backbone.children())[:-2])
 
-    if args.run_eval_only == True and args.resume_checkpoint != None and args.resume_checkpoint != 'None' and 'state_dict' not in args.resume_checkpoint:
-        # if only run eval, load checkpoint
-        logger.info("Evaluation: Loading from checkpoint {}".format(args.resume_checkpoint))
-        _model = torch.load(args.resume_checkpoint)
-    else:
-        _model = MambaHMR(args, mesh_sampler, backbone)
+    _model = MambaHMR(args, mesh_sampler, backbone)
 
-        if args.resume_checkpoint != None and args.resume_checkpoint != 'None':
-            # for fine-tuning or resume training or inference, load weights from checkpoint
-            logger.info("Loading state dict from checkpoint {}".format(args.resume_checkpoint))
-            # workaround approach to load sparse tensor in graph conv.
-            states = torch.load(args.resume_checkpoint, map_location=args.device)
+    if args.resume_checkpoint != None and args.resume_checkpoint != 'None':
+        # for fine-tuning or resume training or inference, load weights from checkpoint
+        logger.info("Loading state dict from checkpoint {}".format(args.resume_checkpoint))
+        # workaround approach to load sparse tensor in graph conv.
+        states = torch.load(args.resume_checkpoint, map_location=args.device)
 
-            for k, v in states.items():
-                states[k] = v.cpu()
-            _model.load_state_dict(states, strict=False)
+        for k, v in states.items():
+            states[k] = v.cpu()
+        _model.load_state_dict(states, strict=False)
 
-            del states
-            gc.collect()
-            torch.cuda.empty_cache()
+        del states
+        gc.collect()
+        torch.cuda.empty_cache()
 
     _model.to(args.device)
     logger.info("Training parameters %s", args)
